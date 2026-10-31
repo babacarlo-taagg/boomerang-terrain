@@ -1,0 +1,599 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>body{margin:0}[hidden]{display:none!important}</style></head><body>
+<title>Maquette Boomerang Terrain</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+/* Layout : à gauche le panneau du testeur, au centre un téléphone. Sur un vrai téléphone, l'appli prend tout l'écran. */
+:root{
+  --ink:#1d2340;          /* encre de la marque : bleu nuit */
+  --bg:#eef0f6;           /* fond autour du téléphone */
+  --screen:#ffffff;       /* fond de l'appli */
+  --soft:#f3f4f9;         /* cartes et boutons calmes */
+  --line:#d9dcea;
+  --muted:#5b6283;
+  --ok:#14a35a;  --ok-bg:#e3f6ec;
+  --todo:#f08a00; --todo-bg:#fff1dc;
+  --bad:#e0352b; --bad-bg:#fde6e4;
+  --off:#9aa0b8;
+  --display:"Baloo 2","Trebuchet MS",system-ui,sans-serif;
+  --body:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --ink:#e8eaff;--bg:#0e1020;--screen:#171a2e;--soft:#22263f;--line:#30355a;--muted:#a3a9cc;
+  --ok:#3fcf86;--ok-bg:#163527;--todo:#ffa53a;--todo-bg:#3a2a12;--bad:#ff6a5f;--bad-bg:#3d1916;--off:#5f6588;color-scheme:dark}}
+:root[data-theme="dark"]{
+  --ink:#e8eaff;--bg:#0e1020;--screen:#171a2e;--soft:#22263f;--line:#30355a;--muted:#a3a9cc;
+  --ok:#3fcf86;--ok-bg:#163527;--todo:#ffa53a;--todo-bg:#3a2a12;--bad:#ff6a5f;--bad-bg:#3d1916;--off:#5f6588;color-scheme:dark}
+
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+*{box-sizing:border-box}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;-webkit-tap-highlight-color:transparent}
+button:focus-visible{outline:3px solid var(--todo);outline-offset:2px}
+
+.wrap{display:flex;gap:32px;justify-content:center;align-items:flex-start;padding-block:24px;min-height:100%}
+.panel{width:280px;display:flex;flex-direction:column;gap:14px;font-size:14px;color:var(--muted)}
+.panel h1{font-family:var(--display);font-size:26px;line-height:1.1;color:var(--ink);margin:0;text-wrap:balance}
+.panel p{margin:0;line-height:1.45}
+.panel .grp{display:flex;flex-direction:column;gap:6px}
+.panel .lbl{font-size:12px;text-transform:uppercase;letter-spacing:.08em;font-weight:700}
+.seg{display:flex;background:var(--screen);border:1px solid var(--line);border-radius:10px;padding:3px;gap:3px}
+.seg button{flex:1;padding:8px 6px;border-radius:8px;font-weight:700;font-size:14px}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--screen)}
+.plain{padding:9px 12px;border-radius:9px;border:1px solid var(--line);background:var(--screen);font-size:14px;font-weight:700;text-align:left}
+
+.phone{width:390px;max-width:100%;height:800px;max-height:calc(100vh - 48px);min-height:620px;background:var(--screen);
+  border-radius:38px;border:10px solid #10132a;box-shadow:0 30px 60px -20px rgba(16,19,42,.45);
+  display:flex;flex-direction:column;overflow:hidden;position:relative}
+
+/* Sur téléphone : l'appli plein écran, le panneau devient une barre repliée */
+@media (max-width:760px){
+  body{padding-left:0;padding-right:0}
+  .wrap{flex-direction:column;gap:0;padding-block:0}
+  .panel{width:100%;padding:10px max(16px,env(safe-area-inset-left,0px)) 10px max(16px,env(safe-area-inset-right,0px));background:var(--soft)}
+  .panel .more{display:none}
+  .panel.open .more{display:flex}
+  .panel h1{font-size:18px}
+  .phone{width:100%;height:auto;min-height:calc(100vh - 60px);max-height:none;border:0;border-radius:0;box-shadow:none}
+}
+@media (min-width:761px){.toggle-panel{display:none}}
+
+/* En-tête de l'appli */
+.top{display:flex;align-items:center;gap:8px;padding:12px 12px 10px;border-bottom:1px solid var(--line);min-height:68px}
+.iconbtn{width:52px;height:52px;border-radius:16px;background:var(--soft);display:grid;place-items:center;font-size:26px;flex:none}
+.top .t{flex:1;min-width:0;font-family:var(--display);font-weight:800;font-size:21px;line-height:1.1;display:flex;align-items:center;gap:8px}
+.top .t span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.listen{background:var(--ink);color:var(--screen)}
+.listen.on{animation:pulse 1s infinite}
+@keyframes pulse{50%{transform:scale(1.08)}}
+.sync{display:flex;align-items:center;gap:4px;padding:6px 10px;border-radius:999px;font-weight:700;font-size:15px;background:var(--ok-bg);color:var(--ok)}
+.sync.wait{background:var(--todo-bg);color:var(--todo)}
+
+.body{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:14px}
+.foot{padding:12px 16px 16px;border-top:1px solid var(--line);display:flex;gap:10px}
+
+.big{width:100%;min-height:68px;border-radius:20px;font-family:var(--display);font-weight:800;font-size:23px;display:flex;align-items:center;justify-content:center;gap:10px;padding:8px 14px}
+.big.go{background:var(--ok);color:#fff}
+.big.warn{background:var(--todo);color:#fff}
+.big.stop{background:var(--bad);color:#fff}
+.big.calm{background:var(--soft)}
+.big[disabled]{opacity:.4;cursor:default}
+
+/* Mission */
+.mission{border-radius:22px;overflow:hidden;border:1px solid var(--line)}
+.place{height:130px;position:relative;background:
+  linear-gradient(180deg,transparent 55%,rgba(0,0,0,.45)),
+  repeating-linear-gradient(90deg,#c94b3c 0 26px,#f2efe6 26px 52px) top/100% 22px no-repeat,
+  linear-gradient(#8fb7d6,#8fb7d6) 0 22px/100% 100% no-repeat;display:flex;align-items:flex-end;padding:10px 12px}
+.place .shop{position:absolute;left:50%;top:34px;transform:translateX(-50%);font-size:54px}
+.place b{color:#fff;font-family:var(--display);font-size:20px;position:relative;line-height:1.1}
+.facts{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px}
+.fact{display:flex;gap:8px;align-items:center;background:var(--soft);border-radius:14px;padding:8px 10px;font-weight:700;min-width:0}
+.fact i{font-style:normal;font-size:24px}
+.fact span{min-width:0;overflow-wrap:anywhere;line-height:1.15}
+.mission .row{display:flex;gap:8px;padding:0 12px 12px}
+.mission .row button{flex:1;min-height:52px;border-radius:14px;background:var(--soft);font-weight:700;display:flex;align-items:center;justify-content:center;gap:6px}
+
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tile{border-radius:20px;padding:14px 10px 12px;background:var(--soft);display:flex;flex-direction:column;align-items:center;gap:4px;
+  border:3px solid transparent;position:relative;min-height:118px;justify-content:center;text-align:center}
+.tile .em{font-size:40px;line-height:1}
+.tile .nm{font-family:var(--display);font-weight:800;font-size:18px;line-height:1.1}
+.tile .st{font-size:13px;font-weight:700}
+.tile.done{border-color:var(--ok);background:var(--ok-bg)} .tile.done .st{color:var(--ok)}
+.tile.todo{border-color:var(--todo);background:var(--todo-bg)} .tile.todo .st{color:var(--todo)}
+.tile.bad{border-color:var(--bad);background:var(--bad-bg)} .tile.bad .st{color:var(--bad)}
+.tile.off{opacity:.45}
+.dot{position:absolute;top:8px;right:8px;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:800;font-size:16px}
+.done .dot{background:var(--ok)} .todo .dot{background:var(--todo)} .bad .dot{background:var(--bad)}
+
+/* Clavier */
+.display{font-family:var(--display);font-weight:800;font-size:34px;text-align:center;letter-spacing:.04em;min-height:52px;font-variant-numeric:tabular-nums}
+.pins{display:flex;justify-content:center;gap:16px;min-height:52px;align-items:center}
+.pins i{width:26px;height:26px;border-radius:50%;border:3px solid var(--ink)}
+.pins i.f{background:var(--ink)}
+.pins.err i{border-color:var(--bad);animation:shake .3s}
+@keyframes shake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+.keys{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.keys button{height:64px;border-radius:18px;background:var(--soft);font-family:var(--display);font-weight:800;font-size:30px}
+.keys .ok{background:var(--ok);color:#fff}
+.hello{text-align:center;display:flex;flex-direction:column;align-items:center;gap:4px}
+.hello .em{font-size:52px}
+.hello b{font-family:var(--display);font-size:24px;line-height:1.15;text-wrap:balance}
+.hello small{color:var(--muted);font-size:15px}
+
+/* Caméra simulée */
+.cam{border-radius:24px;background:#0d0f1c;aspect-ratio:3/4;max-width:100%;position:relative;display:grid;place-items:center;overflow:hidden}
+.cam .oval{width:62%;aspect-ratio:3/4;border:4px dashed rgba(255,255,255,.7);border-radius:50%;display:grid;place-items:center;font-size:90px}
+.cam .shot{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);width:84px;height:84px;border-radius:50%;background:#fff;border:7px solid rgba(255,255,255,.4);background-clip:padding-box}
+.cam .flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none}
+.cam .flash.go{animation:flash .35s}
+@keyframes flash{0%{opacity:.9}100%{opacity:0}}
+.gps{display:flex;align-items:center;gap:10px;border-radius:16px;padding:12px;font-weight:700;background:var(--ok-bg);color:var(--ok)}
+.gps i{font-style:normal;font-size:28px}
+
+.donebox{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;padding-top:16px}
+.check{width:130px;height:130px;border-radius:50%;background:var(--ok);color:#fff;display:grid;place-items:center;font-size:76px;animation:pop .35s}
+@keyframes pop{0%{transform:scale(.4)}80%{transform:scale(1.08)}}
+.donebox b{font-family:var(--display);font-size:30px;line-height:1.1}
+.ticks{font-weight:700;display:flex;align-items:center;gap:6px;color:var(--muted)}
+.ticks .tk{font-size:20px;letter-spacing:-6px;padding-right:6px}
+.ticks .tk.r{color:#2f9be0}
+
+/* Compteurs */
+.counter{display:grid;grid-template-columns:52px 1fr;gap:10px;align-items:center;background:var(--soft);border-radius:20px;padding:12px}
+.counter .em{font-size:40px;text-align:center}
+.counter .nm{font-weight:700;font-size:15px;color:var(--muted);line-height:1.2}
+.counter .ctl{grid-column:1/-1;display:grid;grid-template-columns:72px 1fr 72px;gap:10px;align-items:center}
+.counter .ctl button{height:64px;border-radius:18px;font-size:38px;font-weight:800;font-family:var(--display);line-height:1}
+.counter .minus{background:var(--screen);border:2px solid var(--line)}
+.counter .plus{background:var(--ink);color:var(--screen)}
+.counter .n{text-align:center;font-family:var(--display);font-weight:800;font-size:44px;font-variant-numeric:tabular-nums;line-height:1}
+.counter .goal{font-size:13px;font-weight:700;color:var(--muted)}
+
+.photos{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ph{aspect-ratio:1;border-radius:20px;border:3px dashed var(--todo);background:var(--todo-bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-weight:700;position:relative;overflow:hidden}
+.ph .em{font-size:44px}
+.ph.done{border:3px solid var(--ok);background:linear-gradient(135deg,#6a8f6e,#c9b07a)}
+.ph.done .lab{position:absolute;bottom:0;left:0;right:0;background:var(--ok);color:#fff;padding:6px}
+
+.choices{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.choice{border-radius:20px;background:var(--bad-bg);border:3px solid transparent;padding:16px 8px;display:flex;flex-direction:column;align-items:center;gap:6px;font-weight:700;text-align:center;line-height:1.15}
+.choice .em{font-size:44px}
+.choice[aria-pressed="true"]{border-color:var(--bad)}
+
+.mic{width:118px;height:118px;border-radius:50%;background:var(--ok);color:#fff;font-size:54px;display:grid;place-items:center;margin:0 auto;touch-action:none;user-select:none;-webkit-user-select:none}
+.mic.rec{background:var(--bad);transform:scale(1.12)}
+.hint{text-align:center;font-weight:700;color:var(--muted)}
+.bubble{display:flex;align-items:center;gap:10px;background:var(--ok-bg);border-radius:18px;padding:10px 14px;font-weight:700}
+.bubble .wave{flex:1;height:22px;background:repeating-linear-gradient(90deg,var(--ok) 0 3px,transparent 3px 7px);mask:linear-gradient(90deg,#000 30%,rgba(0,0,0,.4));border-radius:4px}
+
+.days{display:flex;flex-direction:column;gap:8px}
+.day{display:flex;align-items:center;gap:12px;background:var(--soft);border-radius:16px;padding:10px 14px;font-weight:700}
+.day .s{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:20px;flex:none}
+.day .s.ok{background:var(--ok)} .day .s.todo{background:var(--todo)} .day .s.bad{background:var(--bad)}
+.day .d{flex:1}
+.day .m{font-variant-numeric:tabular-nums}
+.total{border-radius:22px;background:var(--ink);color:var(--screen);padding:16px;display:flex;flex-direction:column;gap:2px;text-align:center}
+.total b{font-family:var(--display);font-size:38px;line-height:1.1;font-variant-numeric:tabular-nums}
+.total small{opacity:.8}
+.note{font-size:13px;color:var(--muted);text-align:center}
+
+/* Superviseur */
+.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.sum{border-radius:16px;padding:8px 4px;text-align:center;font-weight:700;font-size:12px;line-height:1.15}
+.sum b{display:block;font-family:var(--display);font-size:30px;line-height:1.1}
+.sum.ok{background:var(--ok-bg);color:var(--ok)} .sum.todo{background:var(--todo-bg);color:var(--todo)}
+.sum.bad{background:var(--bad-bg);color:var(--bad)} .sum.off{background:var(--soft);color:var(--muted)}
+.agent{display:flex;align-items:center;gap:12px;background:var(--soft);border-radius:18px;padding:10px 12px;text-align:left;width:100%;border-left:8px solid var(--off)}
+.agent.ok{border-left-color:var(--ok)} .agent.todo{border-left-color:var(--todo)} .agent.bad{border-left-color:var(--bad)}
+.av{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-family:var(--display);font-size:18px;color:#fff;flex:none;background:var(--muted)}
+.agent .who{flex:1;min-width:0}
+.agent .who b{display:block;font-size:17px}
+.agent .who small{color:var(--muted);font-weight:700}
+.agent .em{font-size:28px}
+.map{border-radius:22px;overflow:hidden;border:1px solid var(--line)}
+.map svg{display:block;width:100%;height:auto}
+.alert{display:flex;gap:12px;align-items:center;border-radius:18px;padding:12px;font-weight:700;width:100%;text-align:left}
+.alert.bad{background:var(--bad-bg)} .alert.todo{background:var(--todo-bg)}
+.alert .em{font-size:34px}
+.alert small{display:block;color:var(--muted)}
+.checkrow{display:flex;align-items:center;gap:10px;background:var(--soft);border-radius:18px;padding:10px 12px}
+.checkrow .em{font-size:34px}
+.checkrow .nm{flex:1;font-weight:700;line-height:1.2}
+.yn{display:flex;gap:6px}
+.yn button{width:54px;height:54px;border-radius:14px;font-size:26px;background:var(--screen);border:2px solid var(--line)}
+.yn button.y[aria-pressed="true"]{background:var(--ok);border-color:var(--ok);color:#fff}
+.yn button.n[aria-pressed="true"]{background:var(--bad);border-color:var(--bad);color:#fff}
+.stars{display:flex;justify-content:center;gap:6px}
+.stars button{font-size:44px;filter:grayscale(1);opacity:.4}
+.stars button.on{filter:none;opacity:1}
+.selfie{display:flex;gap:12px;align-items:center}
+.selfie .face{width:96px;height:120px;border-radius:18px;background:linear-gradient(160deg,#b9805a,#5d3a26);display:grid;place-items:center;font-size:54px;flex:none}
+.kv{display:flex;flex-direction:column;gap:6px;font-weight:700}
+.kv span{display:flex;gap:6px;align-items:center}
+
+.toast{position:absolute;left:12px;right:12px;bottom:90px;background:var(--ink);color:var(--screen);border-radius:16px;padding:12px 14px;font-weight:700;text-align:center;opacity:0;transform:translateY(10px);transition:.25s;pointer-events:none}
+.toast.show{opacity:1;transform:none}
+.offline-band{background:var(--todo);color:#fff;text-align:center;font-weight:700;padding:4px;font-size:14px}
+
+.phrases{max-height:340px;overflow:auto;background:var(--screen);border:1px solid var(--line);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:8px}
+.phrases div{font-size:13px;line-height:1.35;color:var(--ink)}
+.phrases div b{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div class="wrap">
+  <aside class="panel" id="panel">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+      <h1>Maquette Boomerang Terrain</h1>
+      <button class="plain toggle-panel" id="togglePanel" aria-expanded="false">Réglages</button>
+    </div>
+    <div class="more grp" style="gap:14px">
+      <p>Tout est faux et rien n'est envoyé : c'est pour tester les écrans avec les hôtesses avant de coder.</p>
+      <div class="grp"><span class="lbl">Qui teste ?</span>
+        <div class="seg" id="roleSeg"><button data-role="hotesse" aria-pressed="true">Hôtesse</button><button data-role="sup" aria-pressed="false">Superviseur</button></div></div>
+      <div class="grp"><span class="lbl">Réseau</span>
+        <div class="seg" id="netSeg"><button data-net="1" aria-pressed="true">Réseau OK</button><button data-net="0" aria-pressed="false">Pas de réseau</button></div></div>
+      <div class="grp"><span class="lbl">Langue du bouton écouter</span>
+        <div class="seg" id="langSeg"><button data-lang="fr" aria-pressed="true">Français</button><button data-lang="wo" aria-pressed="false">Wolof</button></div></div>
+      <button class="plain" id="reset">↺ Recommencer depuis la connexion</button>
+      <button class="plain" id="showPhrases">🎙 Voir les phrases à enregistrer</button>
+      <div class="phrases" id="phrases" hidden></div>
+      <p>Code d'essai donné par le bureau : <b>1234</b>. N'importe quel numéro marche.</p>
+    </div>
+  </aside>
+  <main class="phone" id="phone" aria-live="polite"></main>
+</div>
+
+<script>
+// ---------- Données d'exemple (fictives) ----------
+const MISSION={lieu:"Supermarché Sacré-Cœur 3",heure:"9 h – 17 h",tenue:"T-shirt rouge",produit:"Jus de bissap",sup:"Fatou",tel:"77 000 00 00",campagne:"Dégustation bissap"};
+const INDICS=[
+  {k:"abordees",em:"🙋🏾‍♀️",nm:"Personnes abordées",goal:150},
+  {k:"echantillons",em:"🥤",nm:"Échantillons donnés",goal:120},
+  {k:"ventes",em:"🛒",nm:"Bouteilles vendues",goal:30}];
+const PHOTOS=[{k:"stand",em:"⛺",nm:"Le stand"},{k:"rayon",em:"🗄️",nm:"Le rayon"},{k:"produit",em:"🧃",nm:"Le produit"},{k:"tenue",em:"👕",nm:"Ma tenue"}];
+const PROBS=[{k:"rupture",em:"📦",nm:"Plus de produit"},{k:"resp",em:"🚫",nm:"Responsable absent"},{k:"casse",em:"🔧",nm:"Matériel cassé"},{k:"autre",em:"❓",nm:"Autre problème"}];
+const TEAM=[
+  {n:"Aïssatou Diop",lieu:"Sacré-Cœur 3",s:"ok",h:"8 h 52",c:"#7b4bd6"},
+  {n:"Mariama Sow",lieu:"Point E",s:"ok",h:"8 h 58",c:"#d6604b"},
+  {n:"Ndèye Fall",lieu:"Liberté 6",s:"todo",h:"en retard 25 min",c:"#2f8fd0"},
+  {n:"Khady Ba",lieu:"Mermoz",s:"ok",h:"9 h 01",c:"#c28a12"},
+  {n:"Awa Sène",lieu:"Ouakam",s:"bad",h:"absente",c:"#1f9a6a"},
+  {n:"Coumba Ndiaye",lieu:"Almadies",s:"ok",h:"8 h 47",c:"#b0457f"},
+  {n:"Bineta Faye",lieu:"Yoff",s:"todo",h:"en retard 10 min",c:"#5466c9"},
+  {n:"Rokhaya Gueye",lieu:"Grand Yoff",s:"off",h:"commence à 11 h",c:"#7a7f99"}];
+const FREE=[{n:"Seynabou Kane",d:"2 km"},{n:"Fatimata Sy",d:"4 km"},{n:"Dieynaba Mbaye",d:"6 km"}];
+const PAIE=10000; // exemple de tarif journalier
+
+// ---------- État ----------
+let S;
+function fresh(){return{role:S?S.role:"hotesse",online:S?S.online:true,lang:S?S.lang:"fr",
+  screen:"login",step:"tel",tel:"",pin:"",newPin:"",first:true,consent:false,
+  arrive:null,depart:null,count:{abordees:0,echantillons:0,ventes:0},rapportSent:false,
+  photos:{},stock:{recu:120,restant:120},stockSent:false,prob:null,voice:0,probs:0,
+  queue:[],team:TEAM.map(t=>({...t,valid:false})),sel:0,visit:{},stars:0,visitDone:false,dayDone:false,camFor:null,last:null}}
+S=fresh();
+const $=s=>document.querySelector(s);
+const now=()=>{const d=new Date();return d.getHours()+" h "+String(d.getMinutes()).padStart(2,"0")};
+
+// ---------- File d'envoi (hors connexion) ----------
+function enqueue(label){S.queue.push({label,sent:false,at:now()});flush();}
+function pending(){return S.queue.filter(q=>!q.sent).length}
+function flush(){if(!S.online)return;setTimeout(()=>{if(!S.online)return;let ch=false;S.queue.forEach(q=>{if(!q.sent){q.sent=true;ch=true}});if(ch)render()},1200)}
+function ticks(sent){return sent?`<span class="ticks"><span class="tk r">✓✓</span> Reçu au bureau</span>`:`<span class="ticks"><span class="tk">✓</span> Gardé dans le téléphone, part dès qu'il y a du réseau</span>`}
+
+// ---------- Voix ----------
+let speaking=false;
+function speak(txt){
+  if(S.lang==="wo"){toast("🎙 Ici on entendra la vraie voix en wolof (à enregistrer)");return}
+  try{const ss=window.speechSynthesis;if(!ss){toast("🔈 Ici on entendra la vraie voix en français");return}
+    ss.cancel();const u=new SpeechSynthesisUtterance(txt);u.lang="fr-FR";u.rate=.92;
+    u.onend=u.onerror=()=>{speaking=false;const b=$(".listen");b&&b.classList.remove("on")};
+    speaking=true;const b=$(".listen");b&&b.classList.add("on");ss.speak(u)}catch(e){toast("🔈 Ici on entendra la vraie voix en français")}
+}
+let tt;function toast(m){const t=$("#toast");if(!t)return;t.textContent=m;t.classList.add("show");clearTimeout(tt);tt=setTimeout(()=>t.classList.remove("show"),2600)}
+
+// ---------- Écrans ----------
+// Chaque écran : {t: titre, em: icône, say: phrase lue par « écouter », back: écran précédent, body, foot}
+const SCREENS={
+login(){
+  const st=S.step;
+  if(st==="tel")return{t:"Connexion",em:"👋🏾",say:"Bonjour. Tape ton numéro de téléphone, puis appuie sur le bouton vert.",
+    body:`<div class="hello"><span class="em">📱</span><b>Ton numéro de téléphone</b></div>
+      <div class="display">${fmtTel(S.tel)||"&nbsp;"}</div>${keypad(S.tel.length>=9)}`};
+  const titles={code:["Ton code secret","🔒","Tape ton code secret à quatre chiffres."],
+    new:["Choisis ton code","🔑","Choisis ton propre code secret à quatre chiffres. Ne le donne à personne."],
+    again:["Encore une fois","🔁","Tape encore ton nouveau code, pour vérifier."]}[st];
+  const val=st==="code"?S.pin:st==="new"?S.newPin:S.pin;
+  return{t:titles[0],em:titles[1],say:titles[2],back:"login:tel",
+    body:`<div class="hello"><span class="em">${titles[1]}</span><b>${titles[0]}</b>
+      ${st==="code"?`<small>${S.first?"Le code donné par le bureau":"Code oublié ? Appelle ton superviseur"}</small>`:""}</div>
+      <div class="pins" id="pins">${[0,1,2,3].map(i=>`<i class="${i<val.length?"f":""}"></i>`).join("")}</div>${keypad(false,true)}`};
+},
+consent(){return{t:"Ton accord",em:"🤝🏾",say:"Pour pointer, l'appli prend une photo de ton visage et regarde où tu es, seulement pendant ta mission. Ces photos sont effacées après trois mois. Appuie sur le bouton vert si tu es d'accord.",
+  body:`<div class="hello"><span class="em">🤝🏾</span><b>Avant de commencer</b></div>
+    <div class="fact"><i>🤳🏾</i><span>Une photo de ton visage à l'arrivée et au départ</span></div>
+    <div class="fact"><i>📍</i><span>Ta position, seulement pendant la mission</span></div>
+    <div class="fact"><i>🗓️</i><span>Effacées après 3 mois</span></div>
+    <div class="note">Appuie sur 🔊 en haut pour écouter l'explication.</div>`,
+  foot:`<button class="big go" data-go="consentOk">✓ J'accepte</button>`}},
+home(){
+  const arr=S.arrive,dep=S.depart,nb=Object.keys(S.photos).length;
+  const tile=(go,em,nm,cls,st,dot)=>`<button class="tile ${cls}" data-go="${go}"><span class="dot">${dot||""}</span><span class="em">${em}</span><span class="nm">${nm}</span><span class="st">${st}</span></button>`;
+  return{t:"Ma journée",em:"☀️",say:`Bonjour Aïssatou. Aujourd'hui tu travailles au ${MISSION.lieu}, de 9 heures à 17 heures. Ta tenue : ${MISSION.tenue}. Les cases orange sont à faire, les cases vertes sont faites.`,
+  body:`<div class="mission">
+      <div class="place"><span class="shop">🏪</span><b>${MISSION.lieu}</b></div>
+      <div class="facts">
+        <div class="fact"><i>🕘</i><span>${MISSION.heure}</span></div>
+        <div class="fact"><i>👕</i><span>${MISSION.tenue}</span></div>
+        <div class="fact"><i>🧃</i><span>${MISSION.produit}</span></div>
+        <div class="fact"><i>🗂️</i><span>${MISSION.campagne}</span></div>
+      </div>
+      <div class="row"><button data-go="map">🗺️ Carte</button><button data-go="call">📞 ${MISSION.sup}</button></div>
+    </div>
+    <div class="tiles">
+      ${tile("pointer:arrive","🤳🏾","Arrivée",arr?"done":"todo",arr?arr:"À faire",arr?"✓":"!")}
+      ${tile("rapport","🔢","Mon rapport",!arr?"off":S.rapportSent?"done":"todo",S.rapportSent?"Envoyé":"À faire",S.rapportSent?"✓":arr?"!":"")}
+      ${tile("photos","📷","Photos",!arr?"off":nb>=PHOTOS.length?"done":"todo",nb+" / "+PHOTOS.length,nb>=PHOTOS.length?"✓":arr?"!":"")}
+      ${tile("stock","📦","Stock",!arr?"off":S.stockSent?"done":"todo",S.stockSent?"Envoyé":"À faire",S.stockSent?"✓":arr?"!":"")}
+      ${tile("probleme","⚠️","Problème","bad",S.probs?S.probs+" signalé"+(S.probs>1?"s":""):"Signaler","")}
+      ${tile("pointer:depart","🏁","Départ",!arr?"off":dep?"done":"",dep?dep:"À la fin",dep?"✓":"")}
+      ${tile("jours","💰","Mes jours","","7 jours","")}
+      ${tile("formation","🎬","Formation","off","Bientôt","")}
+    </div>`}},
+map(){return{t:"Le lieu",em:"🗺️",back:"home",say:`Ton lieu de travail : ${MISSION.lieu}. Tu es à deux kilomètres.`,
+  body:`<div class="map">${fakeMap([{x:210,y:120,c:"var(--bad)",big:1}],{x:90,y:230})}</div>
+    <div class="gps" style="background:var(--todo-bg);color:var(--todo)"><i>🚶🏾‍♀️</i>Tu es à 2,1 km</div>
+    <div class="fact"><i>🏪</i><span>${MISSION.lieu}, à côté de la pharmacie</span></div>`,
+  foot:`<button class="big calm" data-go="home">⬅ Retour</button>`}},
+call(){return{t:"Appeler",em:"📞",back:"home",say:`Appeler ta superviseure ${MISSION.sup}.`,
+  body:`<div class="hello" style="padding-top:30px"><span class="av" style="width:110px;height:110px;font-size:40px;background:#c94b3c">FN</span><b>${MISSION.sup} Ndiaye</b><small>Ta superviseure</small><div class="display">${MISSION.tel}</div></div>`,
+  foot:`<button class="big go" data-go="home">📞 Appeler</button>`}},
+pointer(){
+  const kind=S.arg,label=kind==="arrive"?"Arrivée":"Départ";
+  if(S[kind])return{t:label,em:"✅",back:"home",say:`${label} enregistrée à ${S[kind]}. Bravo.`,
+    body:`<div class="donebox"><div class="check">✓</div><b>${label} ${S[kind]}</b>${ticks(S.queue.find(q=>q.label===label)?.sent)}</div>`,
+    foot:`<button class="big calm" data-go="home">⬅ Retour</button>`};
+  return{t:label,em:"🤳🏾",back:"home",say:"Mets ton visage dans le rond, puis appuie sur le bouton blanc.",
+    body:`<div class="cam"><div class="oval">🙂</div><div class="flash" id="flash"></div><button class="shot" data-go="shoot:${kind}" aria-label="Prendre la photo"></button></div>
+      <div class="gps"><i>📍</i>Tu es au bon endroit (45 m)</div>`}},
+rapport(){
+  if(!S.arrive)return lockScreen();
+  return{t:"Mon rapport",em:"🔢",back:"home",say:"Appuie sur plus chaque fois que tu abordes une personne, donnes un échantillon ou vends une bouteille. Appuie sur le bouton vert à la fin.",
+  body:INDICS.map(i=>`<div class="counter"><span class="em">${i.em}</span><span class="nm">${i.nm}<br><span class="goal">Objectif ${i.goal}</span></span>
+      <div class="ctl"><button class="minus" data-go="cnt:${i.k}:-1" aria-label="moins">–</button><span class="n">${S.count[i.k]}</span><button class="plus" data-go="cnt:${i.k}:1" aria-label="plus">+</button></div></div>`).join("")
+    +(S.rapportSent?ticks(S.queue.find(q=>q.label==="Rapport")?.sent):""),
+  foot:`<button class="big go" data-go="sendRapport">✓ ${S.rapportSent?"Renvoyer":"Envoyer"}</button>`}},
+photos(){
+  if(!S.arrive)return lockScreen();
+  return{t:"Photos",em:"📷",back:"home",say:"Prends une photo de chaque case orange : le stand, le rayon, le produit et ta tenue.",
+  body:`<div class="photos">${PHOTOS.map(p=>S.photos[p.k]
+      ?`<button class="ph done" data-go="cam:${p.k}"><span class="em">${p.em}</span><span class="lab">✓ ${p.nm}</span></button>`
+      :`<button class="ph" data-go="cam:${p.k}"><span class="em">${p.em}</span>${p.nm}<span>📷</span></button>`).join("")}</div>`}},
+cam(){const p=PHOTOS.find(x=>x.k===S.camFor);return{t:p.nm,em:p.em,back:"photos",say:`Photo : ${p.nm}. Appuie sur le bouton blanc.`,
+  body:`<div class="cam" style="background:linear-gradient(135deg,#3b4a3e,#6b5a3a)"><div style="font-size:110px">${p.em}</div><div class="flash" id="flash"></div><button class="shot" data-go="snap" aria-label="Prendre la photo"></button></div>`}},
+stock(){
+  if(!S.arrive)return lockScreen();
+  const donne=Math.max(0,S.stock.recu-S.stock.restant);
+  return{t:"Stock",em:"📦",back:"home",say:"En haut, combien de bouteilles tu as reçues. En bas, combien il en reste à la fin.",
+  body:[["recu","📥","Reçu ce matin"],["restant","📦","Il reste"]].map(([k,em,nm])=>`<div class="counter"><span class="em">${em}</span><span class="nm">${nm}</span>
+      <div class="ctl"><button class="minus" data-go="stk:${k}:-1" aria-label="moins">–</button><span class="n">${S.stock[k]}</span><button class="plus" data-go="stk:${k}:1" aria-label="plus">+</button></div></div>`).join("")
+    +`<div class="fact" style="justify-content:center;font-size:18px"><i>🥤</i><span>Donné ou vendu : <b>${donne}</b></span></div>`
+    +(S.stockSent?ticks(S.queue.find(q=>q.label==="Stock")?.sent):""),
+  foot:`<button class="big go" data-go="sendStock">✓ Envoyer</button>`}},
+probleme(){
+  if(!S.prob)return{t:"Problème",em:"⚠️",back:"home",say:"Quel est le problème ? Plus de produit, responsable absent, matériel cassé, ou autre problème.",
+    body:`<div class="choices">${PROBS.map(p=>`<button class="choice" data-go="prob:${p.k}"><span class="em">${p.em}</span>${p.nm}</button>`).join("")}</div>`};
+  const p=PROBS.find(x=>x.k===S.prob);
+  return{t:p.nm,em:p.em,back:"probleme:reset",say:"Prends une photo si tu peux. Puis garde le doigt sur le micro vert et parle. Lâche pour arrêter.",
+  body:`<button class="ph ${S.probPhoto?"done":""}" style="aspect-ratio:auto;height:120px" data-go="probPhoto">${S.probPhoto?`<span class="em">${p.em}</span><span class="lab">✓ Photo prise</span>`:`<span class="em">📷</span>Prendre une photo`}</button>
+    ${S.voice?`<div class="bubble"><button class="iconbtn" style="width:44px;height:44px;font-size:20px;background:var(--ok);color:#fff" data-go="playVoice">▶</button><span class="wave"></span><span>0:${String(S.voice).padStart(2,"0")}</span><button data-go="delVoice" aria-label="Effacer">🗑️</button></div>`:""}
+    <button class="mic" id="mic" aria-label="Garder appuyé pour parler">🎙️</button>
+    <div class="hint" id="micHint">Garde le doigt appuyé pour parler</div>`,
+  foot:`<button class="big stop" data-go="sendProb" ${S.voice||S.probPhoto?"":"disabled"}>➤ Envoyer</button>`}},
+probSent(){return{t:"Envoyé",em:"✅",back:"home",say:"Ton problème est envoyé à ta superviseure. Elle va t'appeler.",
+  body:`<div class="donebox"><div class="check">✓</div><b>Fatou est prévenue</b>${ticks(S.queue[S.queue.length-1]?.sent)}</div>`,
+  foot:`<button class="big calm" data-go="home">⬅ Retour</button>`}},
+jours(){
+  const days=[["lun. 12 oct.","ok"],["mar. 13 oct.","ok"],["mer. 14 oct.","ok"],["jeu. 15 oct.","bad"],["ven. 16 oct.","ok"],["sam. 17 oct.","ok"],["lun. 19 oct.","ok"],["aujourd'hui","todo"]];
+  const n=days.filter(d=>d[1]==="ok").length+(S.depart?1:0);
+  return{t:"Mes jours",em:"💰",back:"home",say:`Tu as travaillé ${n} jours. On te doit ${fmtF(n*PAIE)}.`,
+  body:`<div class="total"><small>${MISSION.campagne}</small><b>${fmtF(n*PAIE)}</b><small>${n} jours × ${fmtF(PAIE)}</small></div>
+    <div class="days">${days.map(([d,s])=>{const st=d==="aujourd'hui"&&S.depart?"ok":s;
+      return`<div class="day"><span class="s ${st}">${st==="ok"?"✓":st==="bad"?"✕":"…"}</span><span class="d">${d}</span><span class="m">${st==="ok"?fmtF(PAIE):st==="bad"?"absente":"en cours"}</span></div>`}).join("")}</div>
+    <div class="note">Montant d'exemple. Le bureau valide chaque journée.</div>`}},
+formation(){return{t:"Formation",em:"🎬",back:"home",say:"Bientôt : des petites vidéos sur la campagne.",
+  body:`<div class="donebox"><span style="font-size:90px">🎬</span><b>Bientôt</b><span class="note">Petites vidéos et quiz en images, dans une prochaine version.</span></div>`}},
+
+// ----- Superviseur -----
+sup(){const c=k=>S.team.filter(t=>t.s===k).length;
+  return{t:"Mon équipe",em:"👥",say:`Ton équipe aujourd'hui : ${c("ok")} arrivées, ${c("todo")} en retard, ${c("bad")} absente. Appuie sur un nom pour voir le détail.`,
+  body:`<div class="summary"><div class="sum ok"><b>${c("ok")}</b>arrivées</div><div class="sum todo"><b>${c("todo")}</b>en retard</div><div class="sum bad"><b>${c("bad")}</b>absente</div><div class="sum off"><b>${c("off")}</b>plus tard</div></div>
+    <div class="seg" style="border-radius:14px"><button aria-pressed="${S.view!=="map"}" data-go="view:list">☰ Liste</button><button aria-pressed="${S.view==="map"}" data-go="view:map">🗺️ Carte</button></div>
+    ${S.view==="map"?`<div class="map">${fakeMap(S.team.map((t,i)=>({x:40+((i*83)%300),y:40+((i*57)%220),c:col(t.s)})),null)}</div>`
+      :S.team.map((t,i)=>`<button class="agent ${t.s}" data-go="agent:${i}"><span class="av" style="background:${t.c}">${ini(t.n)}</span><span class="who"><b>${t.n}</b><small>${t.lieu} · ${t.h}</small></span><span class="em">${t.valid?"✅":t.s==="bad"?"🔴":t.s==="todo"?"🟠":t.s==="ok"?"🟢":"⚪"}</span></button>`).join("")}`,
+  foot:`<button class="big calm" data-go="alertes" style="font-size:19px">🔔 Alertes <span class="dot" style="position:static;background:var(--bad)">3</span></button><button class="big calm" data-go="supMenu" style="font-size:19px">☰ Plus</button>`}},
+supMenu(){return{t:"Plus",em:"☰",back:"sup",say:"Visite de contrôle, rapport de la journée, ou stock.",
+  body:`<div class="tiles">
+    <button class="tile ${S.visitDone?"done":"todo"}" data-go="visite"><span class="dot">${S.visitDone?"✓":"!"}</span><span class="em">🔍</span><span class="nm">Visite de contrôle</span><span class="st">${S.visitDone?"Faite":"À faire"}</span></button>
+    <button class="tile ${S.dayDone?"done":"todo"}" data-go="journee"><span class="dot">${S.dayDone?"✓":"!"}</span><span class="em">📤</span><span class="nm">Rapport du jour</span><span class="st">${S.dayDone?"Envoyé":"À envoyer"}</span></button>
+    <button class="tile" data-go="alertes"><span class="em">🔔</span><span class="nm">Alertes</span><span class="st">3</span></button>
+    <button class="tile off"><span class="em">📦</span><span class="nm">Répartir le stock</span><span class="st">Bientôt</span></button></div>`}},
+agent(){const t=S.team[S.sel];
+  if(t.s==="bad")return{t:t.n,em:"🔴",back:"sup",say:`${t.n} est absente. Tu peux la remplacer par une hôtesse libre.`,
+    body:`<div class="alert bad"><span class="em">🔴</span><span>Absente<small>${t.lieu} · pas de pointage à 9 h</small></span></div>
+      <div class="note" style="text-align:left;font-weight:700">Hôtesses libres près de ${t.lieu} :</div>
+      ${FREE.map((f,i)=>`<button class="agent" data-go="replace:${i}"><span class="av">${ini(f.n)}</span><span class="who"><b>${f.n}</b><small>à ${f.d}</small></span><span class="em">➕</span></button>`).join("")}`};
+  if(t.s==="off")return{t:t.n,em:"⚪",back:"sup",say:`${t.n} commence plus tard.`,body:`<div class="donebox"><span style="font-size:80px">🕚</span><b>Commence à 11 h</b></div>`};
+  return{t:t.n,em:t.s==="ok"?"🟢":"🟠",back:"sup",say:`${t.n}, arrivée à ${t.h}. Vérifie la photo, puis appuie sur valider ou corriger.`,
+  body:`<div class="selfie"><div class="face">🙂</div><div class="kv"><span>🕘 ${t.h}</span><span>📍 ${t.lieu}, 45 m</span><span>🔢 Rapport : 64 · 51 · 12</span><span>📷 3 / 4 photos</span></div></div>
+    ${t.valid?`<div class="gps"><i>✅</i>Validé${t.fixed?" (corrigé)":""}</div>`:""}
+    ${S.fix?INDICS.map(i=>`<div class="counter"><span class="em">${i.em}</span><span class="nm">${i.nm}</span><div class="ctl"><button class="minus" aria-label="moins">–</button><span class="n">${{abordees:64,echantillons:51,ventes:12}[i.k]}</span><button class="plus" aria-label="plus">+</button></div></div>`).join(""):""}`,
+  foot:S.fix?`<button class="big go" data-go="validate:fix">✓ Enregistrer</button>`
+    :`<button class="big warn" data-go="fix" style="font-size:20px">✏️ Corriger</button><button class="big go" data-go="validate" style="font-size:20px">✓ Valider</button>`}},
+replaced(){return{t:"Remplacée",em:"✅",back:"sup",say:`${S.repl} remplace l'hôtesse absente. Elle a reçu sa mission.`,
+  body:`<div class="donebox"><div class="check">✓</div><b>${S.repl} y va</b><span class="note">Elle reçoit la mission sur son téléphone.</span>${ticks(S.queue[S.queue.length-1]?.sent)}</div>`,
+  foot:`<button class="big calm" data-go="sup">⬅ Mon équipe</button>`}},
+alertes(){return{t:"Alertes",em:"🔔",back:"sup",say:"Trois alertes. Une absente, une rupture de produit, une hôtesse en retard.",
+  body:`<button class="alert bad" data-go="agent:4"><span class="em">🔴</span><span>Awa Sène absente<small>Ouakam · 9 h 15</small></span></button>
+    <div class="alert bad"><span class="em">📦</span><span>Plus de produit<small>Khady Ba · Mermoz · 🎙 0:08</small></span></div>
+    <button class="alert todo" data-go="agent:2"><span class="em">🟠</span><span>Ndèye Fall en retard<small>Liberté 6 · 25 min</small></span></button>`}},
+visite(){const pts=[["tenue","👕","Tenue correcte"],["stand","⛺","Stand propre et monté"],["produit","🧃","Produit bien visible"],["accueil","😊","Accueil des clients"]];
+  return{t:"Visite",em:"🔍",back:"supMenu",say:"Pour chaque point, appuie sur la coche verte si c'est bien, ou la croix rouge si ce n'est pas bien. Puis donne une note avec les étoiles.",
+  body:`<div class="agent ok" style="cursor:default"><span class="av" style="background:#7b4bd6">AD</span><span class="who"><b>Aïssatou Diop</b><small>Sacré-Cœur 3</small></span></div>
+    ${pts.map(([k,em,nm])=>`<div class="checkrow"><span class="em">${em}</span><span class="nm">${nm}</span><span class="yn"><button class="y" aria-pressed="${S.visit[k]===1}" data-go="vis:${k}:1">✓</button><button class="n" aria-pressed="${S.visit[k]===0}" data-go="vis:${k}:0">✕</button></span></div>`).join("")}
+    <div class="stars">${[1,2,3,4,5].map(n=>`<button class="${n<=S.stars?"on":""}" data-go="star:${n}" aria-label="${n} étoiles">⭐</button>`).join("")}</div>
+    ${S.visitDone?ticks(S.queue.find(q=>q.label==="Visite")?.sent):""}`,
+  foot:`<button class="big go" data-go="sendVisit" ${Object.keys(S.visit).length===4&&S.stars?"":"disabled"}>✓ Envoyer</button>`}},
+journee(){const v=S.team.filter(t=>t.valid).length;
+  return{t:"Rapport du jour",em:"📤",back:"supMenu",say:`Rapport de la journée. ${v} pointages validés. Appuie sur le bouton vert pour l'envoyer au bureau.`,
+  body:`<div class="summary" style="grid-template-columns:repeat(2,1fr)"><div class="sum ok"><b>${v} / 7</b>validées</div><div class="sum bad"><b>1</b>remplacée</div></div>
+    ${INDICS.map(i=>`<div class="fact"><i>${i.em}</i><span>${i.nm} : <b>${{abordees:812,echantillons:640,ventes:151}[i.k]}</b></span></div>`).join("")}
+    <div class="fact"><i>⚠️</i><span>Problèmes : <b>2</b></span></div>
+    ${v<7?`<div class="alert todo"><span class="em">🟠</span><span>${7-v} pointage${7-v>1?"s":""} pas encore validé${7-v>1?"s":""}<small>Tu peux envoyer quand même</small></span></div>`:""}
+    ${S.dayDone?ticks(S.queue.find(q=>q.label==="Journée")?.sent):""}`,
+  foot:`<button class="big go" data-go="sendDay">📤 Envoyer au bureau</button>`}},
+};
+function lockScreen(){return{t:"Pas encore",em:"🔒",back:"home",say:"Pointe d'abord ton arrivée.",
+  body:`<div class="donebox"><span style="font-size:90px">🤳🏾</span><b>Pointe d'abord ton arrivée</b></div>`,foot:`<button class="big warn" data-go="pointer:arrive">🤳🏾 Pointer mon arrivée</button>`}}
+
+// ---------- Petits outils ----------
+function keypad(okOn,noOk){return`<div class="keys">${[1,2,3,4,5,6,7,8,9].map(n=>`<button data-go="key:${n}">${n}</button>`).join("")}
+  <button data-go="key:del" aria-label="Effacer">⌫</button><button data-go="key:0">0</button>${noOk?"<span></span>":`<button class="ok" data-go="key:ok" ${okOn?"":"disabled"} aria-label="Valider">✓</button>`}</div>`}
+function fmtTel(t){return t.replace(/^(\d{2})(\d{0,3})(\d{0,2})(\d{0,2}).*/,(m,a,b,c,d)=>[a,b,c,d].filter(Boolean).join(" "))||t}
+function fmtF(n){return n.toLocaleString("fr-FR").replace(/ | /g," ")+" F"}
+function ini(n){return n.split(" ").map(w=>w[0]).join("").slice(0,2)}
+function col(s){return{ok:"var(--ok)",todo:"var(--todo)",bad:"var(--bad)",off:"var(--off)"}[s]}
+function fakeMap(pins,me){return`<svg viewBox="0 0 360 280" role="img" aria-label="Carte">
+  <rect width="360" height="280" fill="var(--soft)"/>
+  <path d="M0 200 Q120 170 200 210 T360 190 L360 280 L0 280Z" fill="#8fc3e8" opacity=".55"/>
+  <g stroke="var(--line)" stroke-width="10" fill="none" stroke-linecap="round"><path d="M20 40 L340 70"/><path d="M60 0 L110 280"/><path d="M230 0 L250 200"/><path d="M0 130 L360 150"/></g>
+  ${pins.map(p=>`<g transform="translate(${p.x} ${p.y})"><circle r="${p.big?16:11}" fill="${p.c}" stroke="#fff" stroke-width="3"/></g>`).join("")}
+  ${me?`<g transform="translate(${me.x} ${me.y})"><circle r="20" fill="#2f9be0" opacity=".25"/><circle r="9" fill="#2f9be0" stroke="#fff" stroke-width="3"/></g>`:""}</svg>`}
+
+// ---------- Rendu ----------
+function render(){
+  const [name,arg]=S.screen.split(":");S.arg=arg;
+  const sc=SCREENS[name]();S.say=sc.say;
+  const p=pending();
+  $("#phone").innerHTML=`${S.online?"":`<div class="offline-band">📵 Pas de réseau : tout est gardé dans le téléphone</div>`}
+    <header class="top">
+      ${sc.back?`<button class="iconbtn" data-go="${sc.back}" aria-label="Retour">⬅</button>`:""}
+      <div class="t"><span aria-hidden="true">${sc.em}</span><span>${sc.t}</span></div>
+      ${S.screen.startsWith("login")||S.screen==="consent"?"":`<span class="sync ${p?"wait":""}" title="${p?p+" à envoyer":"Tout est envoyé"}">${p?"☁️ "+p:"☁️ ✓"}</span>`}
+      <button class="iconbtn listen" data-go="listen" aria-label="Écouter">🔊</button>
+    </header>
+    <section class="body">${sc.body}</section>
+    ${sc.foot?`<footer class="foot">${sc.foot}</footer>`:""}
+    <div class="toast" id="toast"></div>`;
+  bindMic();
+}
+function go(s){S.screen=s;S.fix=false;try{speechSynthesis.cancel()}catch(e){};render();$(".body")&&($(".body").scrollTop=0)}
+
+// ---------- Actions ----------
+document.addEventListener("click",e=>{
+  const b=e.target.closest("[data-go]");if(!b||b.disabled||!$("#phone").contains(b))return;
+  const [a,x,y]=b.dataset.go.split(":");
+  switch(a){
+    case"listen":return speak(S.say);
+    case"login":S.step=x||"tel";S.pin="";S.newPin="";return go("login");
+    case"key":return key(x);
+    case"consentOk":S.consent=true;return go("home");
+    case"pointer":return go("pointer:"+x);
+    case"shoot":flashThen(()=>{S[x]=now();enqueue(x==="arrive"?"Arrivée":"Départ");if(x==="arrive")S.team[0].s="ok";go("pointer:"+x)});return;
+    case"cnt":S.count[x]=Math.max(0,S.count[x]+ +y);if(navigator.vibrate)try{navigator.vibrate(15)}catch(e){};return render();
+    case"sendRapport":S.rapportSent=true;S.queue=S.queue.filter(q=>q.label!=="Rapport"||q.sent);enqueue("Rapport");toast("✓ Rapport gardé, il part tout seul");return render();
+    case"cam":S.camFor=x;return go("cam");
+    case"snap":flashThen(()=>{S.photos[S.camFor]=true;enqueue("Photo "+S.camFor);go("photos")});return;
+    case"stk":S.stock[x]=Math.max(0,S.stock[x]+ +y);if(S.stock.restant>S.stock.recu)S.stock.restant=S.stock.recu;return render();
+    case"sendStock":S.stockSent=true;enqueue("Stock");return render();
+    case"probleme":S.prob=null;S.voice=0;S.probPhoto=false;return go("probleme");
+    case"prob":S.prob=x;return go("probleme");
+    case"probPhoto":S.probPhoto=true;return render();
+    case"delVoice":S.voice=0;return render();
+    case"playVoice":return toast("▶ Lecture du message vocal");
+    case"sendProb":S.probs++;enqueue("Problème");S.prob=null;S.voice=0;S.probPhoto=false;return go("probSent");
+    case"view":S.view=x;return render();
+    case"agent":S.sel=+x;return go("agent");
+    case"fix":S.fix=true;return render();
+    case"validate":S.team[S.sel].valid=true;S.team[S.sel].fixed=x==="fix";enqueue("Validation");S.fix=false;return render();
+    case"replace":{const f=FREE[+x],t=S.team[S.sel];S.repl=f.n;t.n=f.n;t.s="todo";t.h="en route";t.c="#555c80";enqueue("Remplacement");return go("replaced")}
+    case"vis":S.visit[x]=+y;return render();
+    case"star":S.stars=+x;return render();
+    case"sendVisit":S.visitDone=true;enqueue("Visite");return render();
+    case"sendDay":S.dayDone=true;enqueue("Journée");return render();
+    default:return go(b.dataset.go);
+  }
+});
+function flashThen(fn){const f=$("#flash");if(f){f.classList.remove("go");void f.offsetWidth;f.classList.add("go")}setTimeout(fn,350)}
+function key(k){
+  if(S.step==="tel"){if(k==="del")S.tel=S.tel.slice(0,-1);else if(k==="ok"){S.step="code";S.pin=""}else if(S.tel.length<9)S.tel+=k;return render()}
+  const field=S.step==="new"?"newPin":"pin";
+  if(k==="del"){S[field]=S[field].slice(0,-1);return render()}
+  if(S[field].length>=4)return;S[field]+=k;render();
+  if(S[field].length<4)return;
+  setTimeout(()=>{
+    if(S.step==="code"){
+      if(S.first&&S.pin!=="1234")return wrong("Ce n'est pas le bon code");
+      if(S.first){S.step="new";S.newPin="";return render()}
+      if(S.pin!==S.myPin)return wrong("Ce n'est pas le bon code");
+      return enter();
+    }
+    if(S.step==="new"){S.step="again";S.pin="";return render()}
+    if(S.step==="again"){if(S.pin!==S.newPin){S.step="new";S.newPin="";S.pin="";render();return toast("Les deux codes sont différents. Recommence.")}
+      S.myPin=S.newPin;S.first=false;toast("✓ Ton code est enregistré");return enter()}
+  },250);
+}
+function wrong(m){S.pin="";render();const p=$("#pins");p&&p.classList.add("err");toast("✕ "+m)}
+function enter(){S.pin="";if(S.role==="sup")return go("sup");go(S.consent?"home":"consent")}
+
+// Micro : garder appuyé, comme WhatsApp
+let recT,recStart;
+function bindMic(){const m=$("#mic");if(!m)return;
+  const start=e=>{e.preventDefault();m.classList.add("rec");recStart=Date.now();$("#micHint").textContent="🔴 0:00 — lâche pour arrêter";
+    recT=setInterval(()=>{const s=Math.floor((Date.now()-recStart)/1000);$("#micHint").textContent="🔴 0:"+String(s).padStart(2,"0")+" — lâche pour arrêter"},250)};
+  const stop=()=>{if(!recStart)return;clearInterval(recT);const s=Math.max(1,Math.round((Date.now()-recStart)/1000));recStart=null;S.voice=Math.min(59,s);render()};
+  m.addEventListener("pointerdown",start);m.addEventListener("pointerup",stop);m.addEventListener("pointerleave",stop);m.addEventListener("pointercancel",stop);
+  m.addEventListener("contextmenu",e=>e.preventDefault());}
+
+// ---------- Panneau du testeur ----------
+function seg(id,attr,fn){$(id).addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;
+  $(id).querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b));fn(b.dataset[attr])})}
+seg("#roleSeg","role",r=>{S.role=r;S=fresh();S.role=r;if(r==="sup"){S.first=false;S.myPin="1234"}render()});
+seg("#netSeg","net",v=>{S.online=v==="1";if(S.online)flush();render()});
+seg("#langSeg","lang",v=>{S.lang=v});
+$("#reset").onclick=()=>{const r=S.role;S=fresh();S.role=r;if(r==="sup"){S.first=false;S.myPin="1234"}render()};
+$("#togglePanel").onclick=()=>{const p=$("#panel");p.classList.toggle("open");$("#togglePanel").setAttribute("aria-expanded",p.classList.contains("open"))};
+$("#showPhrases").onclick=()=>{const box=$("#phrases");if(!box.hidden){box.hidden=true;return}
+  const keep=JSON.parse(JSON.stringify(S));const list=[];
+  const tryS=(lab,setup)=>{S=JSON.parse(JSON.stringify(keep));setup();const [n,a]=S.screen.split(":");S.arg=a;try{list.push([lab,SCREENS[n]().say])}catch(e){}};
+  tryS("Connexion · numéro",()=>{S.screen="login";S.step="tel"});
+  tryS("Connexion · code",()=>{S.screen="login";S.step="code"});
+  tryS("Connexion · choisir son code",()=>{S.screen="login";S.step="new"});
+  tryS("Connexion · vérifier le code",()=>{S.screen="login";S.step="again"});
+  tryS("Accord selfie et GPS",()=>{S.screen="consent"});
+  tryS("Ma journée",()=>{S.screen="home"});
+  tryS("Pointage",()=>{S.screen="pointer:arrive";S.arrive=null});
+  tryS("Rapport",()=>{S.screen="rapport";S.arrive="9 h"});
+  tryS("Photos",()=>{S.screen="photos";S.arrive="9 h"});
+  tryS("Stock",()=>{S.screen="stock";S.arrive="9 h"});
+  tryS("Problème · choisir",()=>{S.screen="probleme";S.prob=null});
+  tryS("Problème · photo et voix",()=>{S.screen="probleme";S.prob="rupture"});
+  tryS("Problème envoyé",()=>{S.screen="probSent"});
+  tryS("Mes jours",()=>{S.screen="jours"});
+  tryS("Superviseur · équipe",()=>{S.screen="sup"});
+  tryS("Superviseur · visite",()=>{S.screen="visite"});
+  tryS("Superviseur · rapport du jour",()=>{S.screen="journee"});
+  S=keep;
+  box.innerHTML=list.map(([l,t])=>`<div><b>${l}</b>${t}</div>`).join("")+`<div><b>Note</b>Les chiffres et les noms changent selon la mission : on enregistre les nombres et les mots séparément, puis l'appli les assemble.</div>`;
+  box.hidden=false};
+
+render();
+</script>
+
+</body></html>

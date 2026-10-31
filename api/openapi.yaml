@@ -1,0 +1,951 @@
+openapi: 3.1.0
+info:
+  title: API Boomerang Terrain
+  version: 0.1.0
+  summary: Contrat entre l'appli des agents terrain de Boomerang et la base Odoo (module boomerang_terrain).
+  description: |
+    Règles communes :
+
+    - **Hors connexion** : tout ce que le téléphone crée (pointage, rapport, photo, message vocal,
+      problème, visite…) reçoit un `uuid` choisi par le téléphone et part par un `PUT /…/{uuid}`.
+      Rejouer le même `PUT` ne crée jamais de doublon : la deuxième fois, Odoo répond 200 avec l'objet déjà reçu.
+    - **Fichiers d'abord** : une photo ou un message vocal part par `PUT /medias/{uuid}` ; l'objet qui
+      l'utilise donne ensuite cet `uuid`. Si l'objet arrive avant le fichier, Odoo l'accepte et attend le fichier.
+    - **Heures** : `fait_le` est l'heure du téléphone au moment de l'action (format ISO 8601 avec fuseau) ;
+      Odoo note aussi l'heure de réception.
+    - **Erreurs** : jamais de message technique à l'écran. L'appli choisit une image et une voix d'après `code`.
+    - **Droits** : l'hôtesse ne voit que ses missions, le superviseur seulement son équipe.
+    - Toutes les routes sauf `/auth/connexion` et `/auth/renouveler` demandent `Authorization: Bearer <jeton>`.
+servers:
+  - url: https://{domaine}/api/terrain/v1
+    variables:
+      domaine:
+        default: odoo.boomerang.sn
+        description: Adresse de la base Odoo de Boomerang (à confirmer).
+tags:
+  - name: Connexion
+  - name: Hôtesse
+  - name: Envois
+    description: Ce que le téléphone envoie (rejouable sans doublon).
+  - name: Superviseur
+  - name: Voix
+security:
+  - jeton: []
+
+paths:
+  /auth/connexion:
+    post:
+      tags: [Connexion]
+      summary: Se connecter avec son numéro et son code à 4 chiffres
+      description: |
+        Le code est soit le code provisoire donné par le bureau dans Odoo, soit le code choisi par l'agent.
+        Avec un code provisoire, la réponse porte `doit_choisir_code: true` et seule la route `PUT /auth/code`
+        est permise jusqu'au choix du code. Après 5 codes faux, le compte est bloqué 15 minutes (429).
+      security: []
+      operationId: connexion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [telephone, code, appareil]
+              properties:
+                telephone: {$ref: '#/components/schemas/Telephone'}
+                code: {$ref: '#/components/schemas/Code'}
+                appareil:
+                  type: string
+                  maxLength: 64
+                  description: Identifiant de l'installation de l'appli (pour retirer l'accès d'un téléphone perdu).
+      responses:
+        '200':
+          description: Connecté
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Session'}
+        '401': {$ref: '#/components/responses/CodeFaux'}
+        '403': {$ref: '#/components/responses/Interdit'}
+        '429': {$ref: '#/components/responses/TropDEssais'}
+
+  /auth/renouveler:
+    post:
+      tags: [Connexion]
+      summary: Obtenir un nouveau jeton sans retaper le code
+      description: Le jeton d'accès dure 24 heures, le jeton de renouvellement 30 jours (l'agent peut rester longtemps sans réseau).
+      security: []
+      operationId: renouveler
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [jeton_renouvellement]
+              properties:
+                jeton_renouvellement: {type: string}
+      responses:
+        '200':
+          description: Nouveaux jetons
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Session'}
+        '401': {$ref: '#/components/responses/NonConnecte'}
+
+  /auth/code:
+    put:
+      tags: [Connexion]
+      summary: Choisir ou changer son code à 4 chiffres
+      operationId: choisirCode
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ancien_code, nouveau_code]
+              properties:
+                ancien_code: {$ref: '#/components/schemas/Code'}
+                nouveau_code:
+                  allOf: [{$ref: '#/components/schemas/Code'}]
+                  description: Refusé s'il est trop simple (1111, 1234, 0000…) ou égal à l'ancien.
+      responses:
+        '204': {description: Code enregistré}
+        '401': {$ref: '#/components/responses/CodeFaux'}
+        '422': {$ref: '#/components/responses/Invalide'}
+
+  /auth/deconnexion:
+    post:
+      tags: [Connexion]
+      summary: Se déconnecter de ce téléphone
+      operationId: deconnexion
+      responses:
+        '204': {description: Déconnecté}
+
+  /moi:
+    get:
+      tags: [Hôtesse]
+      summary: Ma fiche et mes accords
+      operationId: moi
+      responses:
+        '200':
+          description: L'agent connecté
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Agent'}
+        '401': {$ref: '#/components/responses/NonConnecte'}
+
+  /moi/accord:
+    put:
+      tags: [Hôtesse]
+      summary: Donner ou retirer son accord pour le selfie et le GPS
+      description: L'accord est daté et lié à la version du texte écouté. Sans accord, le pointage se fait sans selfie ni GPS et le superviseur confirme la présence.
+      operationId: accord
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/Accord'}
+      responses:
+        '200':
+          description: Accord enregistré
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Accord'}
+
+  /moi/missions:
+    get:
+      tags: [Hôtesse]
+      summary: Mes missions (aujourd'hui et les jours qui viennent)
+      description: L'appli garde la réponse dans le téléphone pour l'afficher sans réseau.
+      operationId: mesMissions
+      parameters:
+        - {name: du, in: query, schema: {type: string, format: date}, description: Par défaut aujourd'hui}
+        - {name: au, in: query, schema: {type: string, format: date}, description: Par défaut dans 7 jours}
+      responses:
+        '200':
+          description: Missions, de la plus proche à la plus lointaine
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [missions]
+                properties:
+                  missions:
+                    type: array
+                    items: {$ref: '#/components/schemas/Mission'}
+
+  /moi/jours:
+    get:
+      tags: [Hôtesse]
+      summary: Mes jours travaillés et ce qui m'est dû
+      operationId: mesJours
+      parameters:
+        - {name: campagne_id, in: query, schema: {type: integer}, description: Sans ce paramètre, les 60 derniers jours toutes campagnes confondues}
+      responses:
+        '200':
+          description: Jours et montants
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Jours'}
+
+  /medias/{uuid}:
+    put:
+      tags: [Envois]
+      summary: Envoyer une photo, un selfie ou un message vocal
+      description: |
+        Le corps est le fichier lui-même. Photos en JPEG d'au plus 1600 px de côté (environ 300 Ko),
+        messages vocaux en AAC ou Opus, au plus 2 minutes. Rejouable sans doublon.
+      operationId: envoyerMedia
+      parameters:
+        - {$ref: '#/components/parameters/Uuid'}
+        - name: X-Boomerang-Type
+          in: header
+          required: true
+          schema: {$ref: '#/components/schemas/TypeMedia'}
+        - name: X-Boomerang-Fait-Le
+          in: header
+          required: true
+          schema: {type: string, format: date-time}
+      requestBody:
+        required: true
+        content:
+          image/jpeg:
+            schema: {type: string, format: binary}
+          audio/aac:
+            schema: {type: string, format: binary}
+          audio/mp4:
+            schema: {type: string, format: binary}
+          audio/ogg:
+            schema: {type: string, format: binary}
+      responses:
+        '200': {$ref: '#/components/responses/MediaRecu'}
+        '201': {$ref: '#/components/responses/MediaRecu'}
+        '413': {$ref: '#/components/responses/Invalide'}
+        '422': {$ref: '#/components/responses/Invalide'}
+
+  /pointages/{uuid}:
+    put:
+      tags: [Envois]
+      summary: Pointer son arrivée ou son départ
+      operationId: pointer
+      parameters: [{$ref: '#/components/parameters/Uuid'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/PointageEnvoi'}
+      responses:
+        '200': {$ref: '#/components/responses/Pointage'}
+        '201': {$ref: '#/components/responses/Pointage'}
+        '403': {$ref: '#/components/responses/Interdit'}
+        '422': {$ref: '#/components/responses/Invalide'}
+
+  /rapports/{uuid}:
+    put:
+      tags: [Envois]
+      summary: Envoyer (ou renvoyer) le rapport d'une mission
+      description: Un seul rapport par mission. Renvoyer avec un autre `uuid` remplace les chiffres tant que le superviseur ne l'a pas validé (sinon 409).
+      operationId: envoyerRapport
+      parameters: [{$ref: '#/components/parameters/Uuid'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/RapportEnvoi'}
+      responses:
+        '200': {$ref: '#/components/responses/Rapport'}
+        '201': {$ref: '#/components/responses/Rapport'}
+        '409': {$ref: '#/components/responses/DejaValide'}
+        '422': {$ref: '#/components/responses/Invalide'}
+
+  /photos/{uuid}:
+    put:
+      tags: [Envois]
+      summary: Rattacher une photo demandée à une mission
+      operationId: envoyerPhoto
+      parameters: [{$ref: '#/components/parameters/Uuid'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/PhotoEnvoi'}
+      responses:
+        '200': {$ref: '#/components/responses/Recu'}
+        '201': {$ref: '#/components/responses/Recu'}
+        '422': {$ref: '#/components/responses/Invalide'}
+
+  /stocks/{uuid}:
+    put:
+      tags: [Envois]
+      summary: Noter le stock reçu et restant d'une mission
+      description: Le dernier envoi pour une mission et un produit remplace le précédent.
+      operationId: envoyerStock
+      parameters: [{$ref: '#/components/parameters/Uuid'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/StockEnvoi'}
+      responses:
+        '200': {$ref: '#/components/responses/Recu'}
+        '201': {$ref: '#/components/responses/Recu'}
+        '422': {$ref: '#/components/responses/Invalide'}
+
+  /incidents/{uuid}:
+    put:
+      tags: [Envois]
+      summary: Signaler un problème (photo et/ou message vocal)
+      description: Crée une alerte pour le superviseur de la mission.
+      operationId: signalerIncident
+      parameters: [{$ref: '#/components/parameters/Uuid'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/IncidentEnvoi'}
+      responses:
+        '200': {$ref: '#/components/responses/Recu'}
+        '201': {$ref: '#/components/responses/Recu'}
+        '422': {$ref: '#/components/responses/Invalide'}
+
+  /equipe/journee:
+    get:
+      tags: [Superviseur]
+      summary: Mon équipe d'un jour (liste et carte)
+      operationId: equipeJournee
+      parameters:
+        - {name: date, in: query, schema: {type: string, format: date}, description: Par défaut aujourd'hui}
+      responses:
+        '200':
+          description: Les missions de l'équipe et leur état
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [date, resume, missions]
+                properties:
+                  date: {type: string, format: date}
+                  resume:
+                    type: object
+                    required: [arrivees, en_retard, absentes, a_venir]
+                    properties:
+                      arrivees: {type: integer}
+                      en_retard: {type: integer}
+                      absentes: {type: integer}
+                      a_venir: {type: integer}
+                  missions:
+                    type: array
+                    items: {$ref: '#/components/schemas/MissionEquipe'}
+        '403': {$ref: '#/components/responses/Interdit'}
+
+  /equipe/missions/{mission_id}/agents-libres:
+    get:
+      tags: [Superviseur]
+      summary: Hôtesses libres pour remplacer une absente, des plus proches aux plus lointaines
+      operationId: agentsLibres
+      parameters: [{$ref: '#/components/parameters/MissionId'}]
+      responses:
+        '200':
+          description: Agents disponibles ce jour-là, qui connaissent la campagne en premier
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [agents]
+                properties:
+                  agents:
+                    type: array
+                    items:
+                      allOf:
+                        - {$ref: '#/components/schemas/AgentCourt'}
+                        - type: object
+                          properties:
+                            distance_m: {type: [integer, 'null']}
+                            connait_la_campagne: {type: boolean}
+
+  /equipe/missions/{mission_id}/remplacement:
+    post:
+      tags: [Superviseur]
+      summary: Remplacer l'hôtesse d'une mission
+      description: L'ancienne mission passe « remplacée », une nouvelle mission est créée pour la remplaçante, qui la voit à sa prochaine synchronisation.
+      operationId: remplacer
+      parameters: [{$ref: '#/components/parameters/MissionId'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [agent_id]
+              properties:
+                agent_id: {type: integer}
+                motif:
+                  type: string
+                  enum: [absente, malade, retard, autre]
+      responses:
+        '201':
+          description: Nouvelle mission créée
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/MissionEquipe'}
+        '403': {$ref: '#/components/responses/Interdit'}
+        '409': {$ref: '#/components/responses/DejaValide'}
+
+  /validations/{uuid}:
+    put:
+      tags: [Superviseur]
+      summary: Valider ou corriger le pointage et le rapport d'une mission
+      description: Les chiffres corrigés remplacent ceux de l'hôtesse ; les siens restent visibles dans Odoo.
+      operationId: valider
+      parameters: [{$ref: '#/components/parameters/Uuid'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ValidationEnvoi'}
+      responses:
+        '200': {$ref: '#/components/responses/Recu'}
+        '201': {$ref: '#/components/responses/Recu'}
+        '403': {$ref: '#/components/responses/Interdit'}
+        '422': {$ref: '#/components/responses/Invalide'}
+
+  /alertes:
+    get:
+      tags: [Superviseur]
+      summary: Mes alertes (retard, absence, rupture, problème signalé)
+      operationId: alertes
+      parameters:
+        - {name: depuis, in: query, schema: {type: string, format: date-time}, description: Seulement les alertes plus récentes}
+      responses:
+        '200':
+          description: Alertes, de la plus récente à la plus ancienne
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [alertes]
+                properties:
+                  alertes:
+                    type: array
+                    items: {$ref: '#/components/schemas/Alerte'}
+
+  /alertes/{alerte_id}/vue:
+    post:
+      tags: [Superviseur]
+      summary: Marquer une alerte comme vue
+      operationId: alerteVue
+      parameters:
+        - {name: alerte_id, in: path, required: true, schema: {type: integer}}
+      responses:
+        '204': {description: Marquée vue}
+
+  /visites/{uuid}:
+    put:
+      tags: [Superviseur]
+      summary: Envoyer une visite de contrôle
+      operationId: envoyerVisite
+      parameters: [{$ref: '#/components/parameters/Uuid'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/VisiteEnvoi'}
+      responses:
+        '200': {$ref: '#/components/responses/Recu'}
+        '201': {$ref: '#/components/responses/Recu'}
+        '422': {$ref: '#/components/responses/Invalide'}
+
+  /rapports-journee/{uuid}:
+    put:
+      tags: [Superviseur]
+      summary: Envoyer le rapport de la journée au bureau
+      description: Odoo calcule les totaux à partir des rapports reçus ; le superviseur ajoute seulement son avis et un message vocal.
+      operationId: envoyerRapportJournee
+      parameters: [{$ref: '#/components/parameters/Uuid'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [campagne_id, date, fait_le]
+              properties:
+                campagne_id: {type: integer}
+                date: {type: string, format: date}
+                avis: {type: string, enum: [bonne, moyenne, difficile]}
+                message_vocal: {$ref: '#/components/schemas/UuidMedia'}
+                fait_le: {type: string, format: date-time}
+      responses:
+        '200': {$ref: '#/components/responses/Recu'}
+        '201': {$ref: '#/components/responses/Recu'}
+
+  /voix:
+    get:
+      tags: [Voix]
+      summary: Liste des voix enregistrées (français et wolof)
+      description: |
+        Chaque phrase de l'appli a une `cle` (ex. `ecran.journee`, `nombre.12`, `indicateur.ventes`).
+        L'appli télécharge les fichiers nouveaux ou changés et les garde pour l'écoute hors connexion.
+      operationId: voix
+      parameters:
+        - {name: langue, in: query, schema: {$ref: '#/components/schemas/Langue'}}
+        - {name: depuis_version, in: query, schema: {type: integer}, description: Seulement les voix changées après cette version}
+      responses:
+        '200':
+          description: Voix disponibles
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [version, voix]
+                properties:
+                  version: {type: integer, description: À renvoyer dans depuis_version la prochaine fois}
+                  voix:
+                    type: array
+                    items: {$ref: '#/components/schemas/Voix'}
+
+  /fichiers/{jeton}:
+    get:
+      tags: [Voix]
+      summary: Télécharger un fichier (voix, photo du lieu)
+      description: Lien donné par les autres réponses ; il reste valable 7 jours.
+      security: []
+      operationId: fichier
+      parameters:
+        - {name: jeton, in: path, required: true, schema: {type: string}}
+      responses:
+        '200':
+          description: Le fichier
+          content:
+            audio/mp4: {schema: {type: string, format: binary}}
+            audio/ogg: {schema: {type: string, format: binary}}
+            image/jpeg: {schema: {type: string, format: binary}}
+        '404': {$ref: '#/components/responses/Introuvable'}
+
+components:
+  securitySchemes:
+    jeton:
+      type: http
+      scheme: bearer
+
+  parameters:
+    Uuid:
+      name: uuid
+      in: path
+      required: true
+      description: Identifiant choisi par le téléphone ; rejouer le même uuid ne crée pas de doublon.
+      schema: {type: string, format: uuid}
+    MissionId:
+      name: mission_id
+      in: path
+      required: true
+      schema: {type: integer}
+
+  responses:
+    Recu:
+      description: Reçu (201 la première fois, 200 si déjà reçu)
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Recu'}
+    MediaRecu:
+      description: Fichier reçu
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Recu'}
+    Pointage:
+      description: Pointage reçu
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Pointage'}
+    Rapport:
+      description: Rapport reçu
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Rapport'}
+    CodeFaux:
+      description: Numéro ou code faux (`code_faux`)
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Erreur'}
+    NonConnecte:
+      description: Jeton absent ou expiré (`non_connecte`)
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Erreur'}
+    Interdit:
+      description: Compte désactivé, code à choisir d'abord, ou mission d'un autre agent (`interdit`, `compte_desactive`, `code_a_choisir`)
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Erreur'}
+    TropDEssais:
+      description: Trop de codes faux, réessayer plus tard (`trop_d_essais`)
+      headers:
+        Retry-After: {schema: {type: integer}, description: Secondes à attendre}
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Erreur'}
+    Invalide:
+      description: Donnée refusée (`invalide`, `code_trop_simple`, `fichier_trop_gros`)
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Erreur'}
+    DejaValide:
+      description: Déjà validé par le superviseur, ne peut plus changer (`deja_valide`)
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Erreur'}
+    Introuvable:
+      description: Introuvable ou lien expiré (`introuvable`)
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Erreur'}
+
+  schemas:
+    Telephone:
+      type: string
+      pattern: '^\+221[0-9]{9}$'
+      description: Numéro sénégalais au format international, ex. +221770000000
+    Code:
+      type: string
+      pattern: '^[0-9]{4}$'
+    Langue:
+      type: string
+      enum: [fr, wo]
+    TypeMedia:
+      type: string
+      enum: [selfie, photo, vocal]
+    UuidMedia:
+      type: [string, 'null']
+      format: uuid
+      description: uuid d'un fichier envoyé par PUT /medias/{uuid}
+    Position:
+      type: object
+      required: [lat, lon, precision_m]
+      properties:
+        lat: {type: number, minimum: -90, maximum: 90}
+        lon: {type: number, minimum: -180, maximum: 180}
+        precision_m: {type: number, description: Précision donnée par le GPS du téléphone}
+
+    Session:
+      type: object
+      required: [jeton_acces, expire_le, jeton_renouvellement, doit_choisir_code, agent]
+      properties:
+        jeton_acces: {type: string}
+        expire_le: {type: string, format: date-time}
+        jeton_renouvellement: {type: string}
+        doit_choisir_code: {type: boolean, description: Vrai après un code provisoire donné par le bureau}
+        agent: {$ref: '#/components/schemas/Agent'}
+
+    AgentCourt:
+      type: object
+      required: [id, nom]
+      properties:
+        id: {type: integer}
+        nom: {type: string}
+        telephone: {$ref: '#/components/schemas/Telephone'}
+        photo_url: {type: [string, 'null'], format: uri}
+
+    Agent:
+      allOf:
+        - {$ref: '#/components/schemas/AgentCourt'}
+        - type: object
+          required: [role, langue, accord]
+          properties:
+            role: {type: string, enum: [hotesse, superviseur]}
+            langue: {$ref: '#/components/schemas/Langue'}
+            zone: {type: [string, 'null']}
+            accord: {$ref: '#/components/schemas/Accord'}
+
+    Accord:
+      type: object
+      required: [selfie, gps, version_texte]
+      properties:
+        selfie: {type: boolean}
+        gps: {type: boolean}
+        version_texte: {type: string, description: Version de l'explication écoutée, ex. 2026-10-31}
+        donne_le: {type: [string, 'null'], format: date-time, readOnly: true}
+
+    Indicateur:
+      type: object
+      description: Un compteur du rapport, choisi dans Odoo pour chaque campagne.
+      required: [id, cle, libelle, icone]
+      properties:
+        id: {type: integer}
+        cle: {type: string, description: Clé de la voix, ex. indicateur.ventes}
+        libelle: {type: string}
+        icone: {type: string, description: Nom d'une icône de l'appli}
+        objectif_jour: {type: [integer, 'null']}
+
+    PhotoDemandee:
+      type: object
+      required: [id, cle, libelle, icone, nombre]
+      properties:
+        id: {type: integer}
+        cle: {type: string}
+        libelle: {type: string}
+        icone: {type: string}
+        nombre: {type: integer, minimum: 1, description: Nombre de photos attendues}
+
+    Lieu:
+      type: object
+      required: [id, nom, position, rayon_m]
+      properties:
+        id: {type: integer}
+        nom: {type: string}
+        adresse: {type: [string, 'null']}
+        repere: {type: [string, 'null'], description: Ex. « à côté de la pharmacie »}
+        position: {$ref: '#/components/schemas/Position'}
+        rayon_m: {type: integer, description: Distance maximale pour pointer, 200 par défaut}
+        photo_url: {type: [string, 'null'], format: uri}
+
+    Produit:
+      type: object
+      required: [id, nom]
+      properties:
+        id: {type: integer}
+        nom: {type: string}
+        unite: {type: string, description: Ex. bouteille, sachet}
+        photo_url: {type: [string, 'null'], format: uri}
+
+    Mission:
+      type: object
+      required: [id, date, debut, fin, statut, campagne, lieu, indicateurs, photos_demandees, produits]
+      properties:
+        id: {type: integer}
+        date: {type: string, format: date}
+        debut: {type: string, format: date-time}
+        fin: {type: string, format: date-time}
+        statut: {$ref: '#/components/schemas/StatutMission'}
+        campagne:
+          type: object
+          required: [id, nom]
+          properties:
+            id: {type: integer}
+            nom: {type: string}
+            tenue: {type: [string, 'null']}
+            tenue_photo_url: {type: [string, 'null'], format: uri}
+        lieu: {$ref: '#/components/schemas/Lieu'}
+        superviseur: {oneOf: [{$ref: '#/components/schemas/AgentCourt'}, {type: 'null'}]}
+        indicateurs:
+          type: array
+          items: {$ref: '#/components/schemas/Indicateur'}
+        photos_demandees:
+          type: array
+          items: {$ref: '#/components/schemas/PhotoDemandee'}
+        produits:
+          type: array
+          items: {$ref: '#/components/schemas/Produit'}
+        stock_prevu:
+          type: array
+          items:
+            type: object
+            required: [produit_id, quantite]
+            properties:
+              produit_id: {type: integer}
+              quantite: {type: integer}
+        arrivee: {oneOf: [{$ref: '#/components/schemas/Pointage'}, {type: 'null'}]}
+        depart: {oneOf: [{$ref: '#/components/schemas/Pointage'}, {type: 'null'}]}
+        rapport: {oneOf: [{$ref: '#/components/schemas/Rapport'}, {type: 'null'}]}
+
+    StatutMission:
+      type: string
+      enum: [prevue, en_cours, terminee, validee, absente, remplacee, annulee]
+
+    PointageEnvoi:
+      type: object
+      required: [mission_id, sens, fait_le]
+      properties:
+        mission_id: {type: integer}
+        sens: {type: string, enum: [arrivee, depart]}
+        fait_le: {type: string, format: date-time}
+        selfie: {$ref: '#/components/schemas/UuidMedia'}
+        position:
+          oneOf: [{$ref: '#/components/schemas/Position'}, {type: 'null'}]
+          description: Absente si l'agent a refusé le GPS ou si le GPS ne capte pas.
+    Pointage:
+      allOf:
+        - {$ref: '#/components/schemas/PointageEnvoi'}
+        - type: object
+          required: [uuid, etat]
+          properties:
+            uuid: {type: string, format: uuid}
+            distance_m: {type: [integer, 'null'], description: Distance au lieu calculée par Odoo}
+            retard_min: {type: [integer, 'null']}
+            etat: {type: string, enum: [recu, a_verifier, valide, corrige]}
+
+    RapportEnvoi:
+      type: object
+      required: [mission_id, valeurs, fait_le]
+      properties:
+        mission_id: {type: integer}
+        fait_le: {type: string, format: date-time}
+        valeurs:
+          type: array
+          items:
+            type: object
+            required: [indicateur_id, valeur]
+            properties:
+              indicateur_id: {type: integer}
+              valeur: {type: integer, minimum: 0}
+        message_vocal: {$ref: '#/components/schemas/UuidMedia'}
+    Rapport:
+      allOf:
+        - {$ref: '#/components/schemas/RapportEnvoi'}
+        - type: object
+          required: [uuid, etat]
+          properties:
+            uuid: {type: string, format: uuid}
+            etat: {type: string, enum: [recu, valide, corrige]}
+
+    PhotoEnvoi:
+      type: object
+      required: [mission_id, photo_demandee_id, media, fait_le]
+      properties:
+        mission_id: {type: integer}
+        photo_demandee_id: {type: integer}
+        media: {type: string, format: uuid}
+        position: {oneOf: [{$ref: '#/components/schemas/Position'}, {type: 'null'}]}
+        fait_le: {type: string, format: date-time}
+
+    StockEnvoi:
+      type: object
+      required: [mission_id, produit_id, recu, restant, fait_le]
+      properties:
+        mission_id: {type: integer}
+        produit_id: {type: integer}
+        recu: {type: integer, minimum: 0}
+        restant: {type: integer, minimum: 0, description: Au plus égal à recu}
+        fait_le: {type: string, format: date-time}
+
+    IncidentEnvoi:
+      type: object
+      required: [mission_id, type, fait_le]
+      properties:
+        mission_id: {type: integer}
+        type: {type: string, enum: [rupture, responsable_absent, materiel_casse, autre]}
+        photo: {$ref: '#/components/schemas/UuidMedia'}
+        message_vocal: {$ref: '#/components/schemas/UuidMedia'}
+        position: {oneOf: [{$ref: '#/components/schemas/Position'}, {type: 'null'}]}
+        fait_le: {type: string, format: date-time}
+
+    Jours:
+      type: object
+      required: [jours, total_jours, total_montant, devise]
+      properties:
+        devise: {type: string, const: XOF}
+        total_jours: {type: number, description: Une demi-journée compte 0,5}
+        total_montant: {type: integer}
+        deja_paye: {type: integer}
+        jours:
+          type: array
+          items:
+            type: object
+            required: [date, campagne, statut, montant]
+            properties:
+              date: {type: string, format: date}
+              campagne: {type: string}
+              statut: {type: string, enum: [valide, a_valider, absente, en_cours]}
+              montant: {type: integer, description: Tarif journalier de la campagne, 0 si absente}
+
+    MissionEquipe:
+      type: object
+      required: [mission_id, agent, lieu, debut, statut, presence]
+      properties:
+        mission_id: {type: integer}
+        agent: {$ref: '#/components/schemas/AgentCourt'}
+        lieu: {$ref: '#/components/schemas/Lieu'}
+        debut: {type: string, format: date-time}
+        statut: {$ref: '#/components/schemas/StatutMission'}
+        presence: {type: string, enum: [arrivee, en_retard, absente, a_venir, partie]}
+        arrivee: {oneOf: [{$ref: '#/components/schemas/Pointage'}, {type: 'null'}]}
+        depart: {oneOf: [{$ref: '#/components/schemas/Pointage'}, {type: 'null'}]}
+        selfie_url: {type: [string, 'null'], format: uri}
+        rapport: {oneOf: [{$ref: '#/components/schemas/Rapport'}, {type: 'null'}]}
+        photos_recues: {type: integer}
+        photos_attendues: {type: integer}
+        incidents_ouverts: {type: integer}
+        valide: {type: boolean}
+
+    ValidationEnvoi:
+      type: object
+      required: [mission_id, decision, fait_le]
+      properties:
+        mission_id: {type: integer}
+        decision: {type: string, enum: [valide, corrige, absente]}
+        presence_jours: {type: number, enum: [0, 0.5, 1], description: Journée à payer ; 1 par défaut si valide}
+        corrections:
+          type: array
+          items:
+            type: object
+            required: [indicateur_id, valeur]
+            properties:
+              indicateur_id: {type: integer}
+              valeur: {type: integer, minimum: 0}
+        fait_le: {type: string, format: date-time}
+
+    Alerte:
+      type: object
+      required: [id, type, gravite, cree_le, mission_id, agent, vue]
+      properties:
+        id: {type: integer}
+        type: {type: string, enum: [retard, absence, rupture, incident, hors_zone]}
+        gravite: {type: string, enum: [orange, rouge]}
+        cree_le: {type: string, format: date-time}
+        mission_id: {type: integer}
+        agent: {$ref: '#/components/schemas/AgentCourt'}
+        photo_url: {type: [string, 'null'], format: uri}
+        vocal_url: {type: [string, 'null'], format: uri}
+        vue: {type: boolean}
+
+    VisiteEnvoi:
+      type: object
+      required: [mission_id, points, note, fait_le]
+      properties:
+        mission_id: {type: integer}
+        points:
+          type: array
+          items:
+            type: object
+            required: [point_id, ok]
+            properties:
+              point_id: {type: integer, description: Point de contrôle défini dans Odoo pour la campagne}
+              ok: {type: boolean}
+        note: {type: integer, minimum: 1, maximum: 5}
+        photos:
+          type: array
+          items: {type: string, format: uuid}
+        message_vocal: {$ref: '#/components/schemas/UuidMedia'}
+        position: {oneOf: [{$ref: '#/components/schemas/Position'}, {type: 'null'}]}
+        fait_le: {type: string, format: date-time}
+
+    Voix:
+      type: object
+      required: [cle, langue, url, duree_ms, version]
+      properties:
+        cle: {type: string}
+        langue: {$ref: '#/components/schemas/Langue'}
+        url: {type: string, format: uri}
+        duree_ms: {type: integer}
+        version: {type: integer}
+
+    Recu:
+      type: object
+      required: [uuid, recu_le]
+      properties:
+        uuid: {type: string, format: uuid}
+        recu_le: {type: string, format: date-time}
+        en_attente_de:
+          type: array
+          items: {type: string, format: uuid}
+          description: Fichiers annoncés mais pas encore reçus
+
+    Erreur:
+      type: object
+      required: [code]
+      properties:
+        code:
+          type: string
+          enum: [code_faux, non_connecte, interdit, compte_desactive, code_a_choisir, trop_d_essais,
+                 invalide, code_trop_simple, fichier_trop_gros, deja_valide, introuvable, erreur_serveur]
+          description: L'appli montre une image et joue une voix selon ce code, jamais le texte technique.
+        detail: {type: string, description: Pour les journaux seulement, jamais affiché}
