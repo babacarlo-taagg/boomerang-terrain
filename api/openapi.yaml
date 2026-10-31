@@ -180,7 +180,7 @@ paths:
       summary: Mes jours travaillés et ce qui m'est dû
       operationId: mesJours
       parameters:
-        - {name: campagne_id, in: query, schema: {type: integer}, description: Sans ce paramètre, les 60 derniers jours toutes campagnes confondues}
+        - {name: campagne_id, in: query, schema: {type: integer}, description: 'Sans ce paramètre, les 60 derniers jours, toutes campagnes confondues'}
       responses:
         '200':
           description: Jours et montants
@@ -662,7 +662,7 @@ components:
       properties:
         selfie: {type: boolean}
         gps: {type: boolean}
-        version_texte: {type: string, description: Version de l'explication écoutée, ex. 2026-10-31}
+        version_texte: {type: string, description: 'Version de l''explication écoutée, ex. 2026-10-31'}
         donne_le: {type: [string, 'null'], format: date-time, readOnly: true}
 
     Indicateur:
@@ -671,7 +671,7 @@ components:
       required: [id, cle, libelle, icone]
       properties:
         id: {type: integer}
-        cle: {type: string, description: Clé de la voix, ex. indicateur.ventes}
+        cle: {type: string, description: 'Clé de la voix, ex. indicateur.ventes'}
         libelle: {type: string}
         icone: {type: string, description: Nom d'une icône de l'appli}
         objectif_jour: {type: [integer, 'null']}
@@ -695,7 +695,7 @@ components:
         adresse: {type: [string, 'null']}
         repere: {type: [string, 'null'], description: Ex. « à côté de la pharmacie »}
         position: {$ref: '#/components/schemas/Position'}
-        rayon_m: {type: integer, description: Distance maximale pour pointer, 200 par défaut}
+        rayon_m: {type: integer, description: 'Distance maximale pour pointer, 200 par défaut'}
         photo_url: {type: [string, 'null'], format: uri}
 
     Produit:
@@ -704,7 +704,7 @@ components:
       properties:
         id: {type: integer}
         nom: {type: string}
-        unite: {type: string, description: Ex. bouteille, sachet}
+        unite: {type: string, description: 'Ex. bouteille, sachet'}
         photo_url: {type: [string, 'null'], format: uri}
 
     Mission:
@@ -833,7 +833,7 @@ components:
       required: [jours, total_jours, total_montant, devise]
       properties:
         devise: {type: string, const: XOF}
-        total_jours: {type: number, description: Une demi-journée compte 0,5}
+        total_jours: {type: number, description: 'Une demi-journée compte 0,5'}
         total_montant: {type: integer}
         deja_paye: {type: integer}
         jours:
@@ -845,7 +845,7 @@ components:
               date: {type: string, format: date}
               campagne: {type: string}
               statut: {type: string, enum: [valide, a_valider, absente, en_cours]}
-              montant: {type: integer, description: Tarif journalier de la campagne, 0 si absente}
+              montant: {type: integer, description: 'Tarif journalier de la campagne, 0 si absente'}
 
     MissionEquipe:
       type: object
@@ -948,4 +948,4 @@ components:
           enum: [code_faux, non_connecte, interdit, compte_desactive, code_a_choisir, trop_d_essais,
                  invalide, code_trop_simple, fichier_trop_gros, deja_valide, introuvable, erreur_serveur]
           description: L'appli montre une image et joue une voix selon ce code, jamais le texte technique.
-        detail: {type: string, description: Pour les journaux seulement, jamais affiché}
+        detail: {type: string, description: 'Pour les journaux seulement, jamais affiché'}
